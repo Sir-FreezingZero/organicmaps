@@ -2,15 +2,21 @@
 
 #include "routing/vehicle_mask.hpp"
 
+#include "geometry/region2d.hpp"
+
 #include "base/small_map.hpp"
 
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace routing
 {
 enum class RouterType;
+
+/// User-defined areas in mercator coordinates that routes must not pass through.
+using AvoidZones = std::vector<m2::RegionD>;
 
 class RoutingOptions
 {

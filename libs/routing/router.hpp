@@ -9,6 +9,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -57,6 +58,9 @@ public:
   virtual void ClearState() = 0;
 
   virtual void SetGuides(GuidesTracks && guides) = 0;
+
+  /// Unlike guides, zones are kept for all subsequent requests until replaced.
+  virtual void SetAvoidZones(std::shared_ptr<AvoidZones const> /* zones */) {}
 
   /// Override this function with routing implementation.
   /// It will be called in separate thread and only one function will processed in same time.

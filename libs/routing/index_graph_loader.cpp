@@ -27,13 +27,15 @@ public:
   IndexGraphLoaderImpl(VehicleType vehicleType, bool loadAltitudes,
                        std::shared_ptr<VehicleModelFactoryInterface> vehicleModelFactory,
                        std::shared_ptr<EdgeEstimator> estimator, MwmDataSource & dataSource,
-                       RoutingOptions routingOptions, TimeGetterT timeGetter)
+                       RoutingOptions routingOptions, TimeGetterT timeGetter,
+                       std::shared_ptr<AvoidZones const> avoidZones)
     : m_vehicleType(vehicleType)
     , m_loadAltitudes(loadAltitudes)
     , m_dataSource(dataSource)
     , m_vehicleModelFactory(std::move(vehicleModelFactory))
     , m_estimator(std::move(estimator))
     , m_avoidRoutingOptions(routingOptions)
+    , m_avoidZones(std::move(avoidZones))
   {
     CHECK(m_vehicleModelFactory, ());
     CHECK(m_estimator, ());
@@ -72,6 +74,7 @@ private:
   SpeedCamerasMapT const & ReceiveSpeedCamsFromMwm(NumMwmId numMwmId);
 
   RoutingOptions m_avoidRoutingOptions;
+  std::shared_ptr<AvoidZones const> m_avoidZones;
   std::function<time_t()> m_currentTimeGetter = [time = GetCurrentTimestamp()]() { return time; };
 };
 
@@ -140,6 +143,7 @@ IndexGraphLoaderImpl::GraphPtrT IndexGraphLoaderImpl::CreateIndexGraph(NumMwmId 
 
     auto graph = std::make_unique<IndexGraph>(geometry, m_estimator, m_avoidRoutingOptions);
     graph->SetCurrentTimeGetter(m_currentTimeGetter);
+    graph->SetAvoidZones(m_avoidZones);
     DeserializeIndexGraph(*value, m_vehicleType, *graph);
 
     LOG(LINFO, ("Graph loaded in", timer.ElapsedSeconds(), "seconds"));
@@ -211,10 +215,10 @@ bool ReadRoadAccessFromMwm(MwmValue const & mwmValue, VehicleType vehicleType, R
 std::unique_ptr<IndexGraphLoader> IndexGraphLoader::Create(
     VehicleType vehicleType, bool loadAltitudes, std::shared_ptr<VehicleModelFactoryInterface> vehicleModelFactory,
     std::shared_ptr<EdgeEstimator> estimator, MwmDataSource & dataSource, RoutingOptions routingOptions,
-    TimeGetterT timeGetter)
+    TimeGetterT timeGetter, std::shared_ptr<AvoidZones const> avoidZones)
 {
   return std::make_unique<IndexGraphLoaderImpl>(vehicleType, loadAltitudes, vehicleModelFactory, estimator, dataSource,
-                                                routingOptions, std::move(timeGetter));
+                                                routingOptions, std::move(timeGetter), std::move(avoidZones));
 }
 
 void DeserializeIndexGraph(MwmValue const & mwmValue, VehicleType vehicleType, IndexGraph & graph)

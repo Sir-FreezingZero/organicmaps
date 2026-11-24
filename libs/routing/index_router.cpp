@@ -449,6 +449,19 @@ void IndexRouter::SetGuides(GuidesTracks && guides)
   m_guides = GuidesConnections(std::move(guides));
 }
 
+void IndexRouter::SetAvoidZones(std::shared_ptr<AvoidZones const> zones)
+{
+  if (zones == m_avoidZones)
+    return;
+
+  m_avoidZones = std::move(zones);
+  // The previous route may cross the new zones, so it can't be adjusted.
+  m_lastRoute.reset();
+  m_lastFakeEdges.reset();
+  m_lastAltRoute.reset();
+  m_lastAltFakeEdges.reset();
+}
+
 RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2::PointD const & startDirection,
                                              bool adjustToPrevRoute, bool needAlternatives,
                                              RouterDelegate const & delegate, RoutesResult & result)
@@ -474,10 +487,22 @@ RouterResultCode IndexRouter::CalculateRoute(Checkpoints const & checkpoints, m2
       m_lastAltFakeEdges.reset();
     }
     m_previousRoutingOptions = m_requestRoutingOptions->GetOptions();
+
+    if (m_avoidZones && !m_avoidZones->empty())
+    {
+      // A checkpoint inside a zone is unreachable, so ignore such zones.
+      auto zones = std::make_shared<AvoidZones>();
+      std::copy_if(m_avoidZones->cbegin(), m_avoidZones->cend(), std::back_inserter(*zones),
+                   [&checkpoints](m2::RegionD const & zone)
+      { return !base::AnyOf(checkpoints.GetPoints(), [&zone](m2::PointD const & pt) { return zone.Contains(pt); }); });
+      m_requestAvoidZones = std::move(zones);
+    }
+
     SCOPE_GUARD(featureRoadGraphClear, [this]
     {
       ClearRouteCalculationState();
       m_requestRoutingOptions.reset();
+      m_requestAvoidZones.reset();
     });
 
     // Both the adjustment and the full build below keep the strategy of the route the user follows.
@@ -1373,7 +1398,7 @@ std::unique_ptr<WorldGraph> IndexRouter::MakeWorldGraph()
 
   auto indexGraphLoader = IndexGraphLoader::Create(
       m_vehicleType == VehicleType::Transit ? VehicleType::Pedestrian : m_vehicleType, m_loadAltitudes,
-      m_vehicleModelFactory, m_estimator, m_dataSource, graphAvoids, m_currentTimeGetter);
+      m_vehicleModelFactory, m_estimator, m_dataSource, graphAvoids, m_currentTimeGetter, m_requestAvoidZones);
 
   if (m_vehicleType != VehicleType::Transit)
   {

@@ -196,6 +196,12 @@ void AsyncRouter::SetGuidesTracks(GuidesTracks && guides)
   m_guides = std::move(guides);
 }
 
+void AsyncRouter::SetAvoidZones(AvoidZones && zones)
+{
+  lock_guard ul(m_guard);
+  m_avoidZones = std::make_shared<AvoidZones const>(std::move(zones));
+}
+
 void AsyncRouter::ClearState()
 {
   lock_guard ul(m_guard);
@@ -321,6 +327,7 @@ void AsyncRouter::CalculateRoute()
     routerName = router->GetName();
     router->SetGuides(std::move(m_guides));
     m_guides.clear();
+    router->SetAvoidZones(m_avoidZones);
     m_isCalculating = true;
   }
 

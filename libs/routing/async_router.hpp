@@ -56,6 +56,8 @@ public:
                       std::optional<RoutingOptions> routingOptions = std::nullopt);
 
   void SetGuidesTracks(GuidesTracks && guides);
+  /// Applies to all subsequent route calculations. Pass empty zones to stop avoiding.
+  void SetAvoidZones(AvoidZones && zones);
   /// Interrupt routing and clear buffers
   void ClearState();
   /// Forward to the underlying IRouter. See IRouter::SwapAltRouteToActive.
@@ -119,6 +121,7 @@ private:
   bool m_clearState = false;
   Checkpoints m_checkpoints;
   GuidesTracks m_guides;
+  std::shared_ptr<AvoidZones const> m_avoidZones;
 
   m2::PointD m_startDirection = m2::PointD::Zero();
   bool m_adjustToPrevRoute = false;

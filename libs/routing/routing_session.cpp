@@ -61,6 +61,13 @@ void RoutingSession::Init(PointCheckCallback const & pointCheckCallback)
   m_router = std::make_unique<AsyncRouter>(pointCheckCallback);
 }
 
+void RoutingSession::SetAvoidZones(AvoidZones && zones)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  CHECK(m_router, ());
+  m_router->SetAvoidZones(std::move(zones));
+}
+
 void RoutingSession::BuildRoute(Checkpoints const & checkpoints, uint32_t timeoutSec)
 {
   CHECK_THREAD_CHECKER(m_threadChecker, ());

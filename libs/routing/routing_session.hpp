@@ -166,6 +166,7 @@ public:
   SpeedCameraManager const & GetSpeedCamManager() const { return m_speedCameraManager; }
 
   void SetGuidesForTests(GuidesTracks guides) { m_router->SetGuidesTracks(std::move(guides)); }
+  void SetAvoidZones(AvoidZones && zones);
 
   double GetCompletionPercent() const;
 

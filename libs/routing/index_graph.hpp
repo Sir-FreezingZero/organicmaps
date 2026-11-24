@@ -89,6 +89,7 @@ public:
   void SetRestrictions(RestrictionVec && restrictions);
   void SetUTurnRestrictions(std::vector<RestrictionUTurn> && noUTurnRestrictions);
   void SetRoadAccess(RoadAccess && roadAccess);
+  void SetAvoidZones(std::shared_ptr<AvoidZones const> zones) { m_avoidZones = std::move(zones); }
 
   void PushFromSerializer(Joint::Id jointId, RoadPoint const & rp) { m_roadIndex.PushFromSerializer(jointId, rp); }
 
@@ -184,6 +185,8 @@ private:
   template <typename AccessPositionType>
   bool IsAccessNoForSure(AccessPositionType const & accessPositionType, RouteWeight const & weight,
                          bool useAccessConditional) const;
+  /// Road points inside avoid zones are treated like barriers with access=no.
+  bool IsInAvoidZone(RoadPoint const & rp) const;
 
   std::shared_ptr<Geometry> m_geometry;
   std::shared_ptr<EdgeEstimator> m_estimator;
@@ -208,6 +211,7 @@ private:
 
   RoadAccess m_roadAccess;
   RoutingOptions m_avoidRoutingOptions;
+  std::shared_ptr<AvoidZones const> m_avoidZones;
 
   std::function<time_t()> m_currentTimeGetter = []() { return GetCurrentTimestamp(); };
 };

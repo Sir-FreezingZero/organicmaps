@@ -161,6 +161,8 @@ public:
   routing::RoutingSession & RoutingSession() { return m_routingSession; }
   void SetRouter(routing::RouterType type);
   routing::RouterType GetRouter() const { return m_currentRouterType; }
+  /// Areas that routes avoid, starting from the next route build. Zones containing a route point are ignored.
+  void SetAvoidZones(routing::AvoidZones && zones) { m_routingSession.SetAvoidZones(std::move(zones)); }
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }
   bool IsRouteBuilding() const { return m_routingSession.IsBuilding(); }

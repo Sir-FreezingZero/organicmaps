@@ -222,6 +222,16 @@ void IndexGraph::SetRoadAccess(RoadAccess && roadAccess)
   m_roadAccess.SetCurrentTimeGetter(m_currentTimeGetter);
 }
 
+bool IndexGraph::IsInAvoidZone(RoadPoint const & rp) const
+{
+  if (!m_avoidZones || m_avoidZones->empty())
+    return false;
+
+  auto const pt = mercator::FromLatLon(GetRoadGeometry(rp.GetFeatureId()).GetPoint(rp.GetPointId()));
+  return std::any_of(m_avoidZones->cbegin(), m_avoidZones->cend(),
+                     [&pt](m2::RegionD const & zone) { return zone.Contains(pt); });
+}
+
 void IndexGraph::GetNeighboringEdges(astar::VertexData<Segment, RouteWeight> const & fromVertexData,
                                      RoadPoint const & rp, bool isOutgoing, bool useRoutingOptions,
                                      SegmentEdgeListT & edges, Parents<Segment> const & parents,
@@ -316,8 +326,11 @@ void IndexGraph::ReconstructJointSegment(astar::VertexData<JointSegment, RouteWe
     if (IsAccessNoForSure(firstChild.GetFeatureId(), weightTimeToParent, true /* useAccessConditional */))
       continue;
 
-    if (IsAccessNoForSure(parent.GetRoadPoint(isOutgoing), weightTimeToParent, true /* useAccessConditional */))
+    if (IsAccessNoForSure(parent.GetRoadPoint(isOutgoing), weightTimeToParent, true /* useAccessConditional */) ||
+        IsInAvoidZone(parent.GetRoadPoint(isOutgoing)))
+    {
       continue;
+    }
 
     if (IsUTurn(parent, firstChild) && IsUTurnAndRestricted(parent, firstChild, isOutgoing))
       continue;
@@ -338,7 +351,7 @@ void IndexGraph::ReconstructJointSegment(astar::VertexData<JointSegment, RouteWe
       // And using |weightTimeToParent| is not fair in fact, because we should calculate weight
       // until this |rp|. But we assume that segments have small length and inaccuracy will not
       // affect user.
-      if (IsAccessNoForSure(rp, weightTimeToParent, true /* useAccessConditional */))
+      if (IsAccessNoForSure(rp, weightTimeToParent, true /* useAccessConditional */) || IsInAvoidZone(rp))
       {
         noRoadAccess = true;
         break;
@@ -395,7 +408,7 @@ void IndexGraph::GetNeighboringEdge(astar::VertexData<Segment, RouteWeight> cons
     return;
 
   RoadPoint const rp = from.GetRoadPoint(isOutgoing);
-  if (IsAccessNoForSure(rp, weightToFrom, useAccessConditional))
+  if (IsAccessNoForSure(rp, weightToFrom, useAccessConditional) || IsInAvoidZone(rp))
     return;
 
   edges.emplace_back(to,

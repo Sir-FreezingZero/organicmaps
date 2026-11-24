@@ -82,6 +82,7 @@ public:
   void ClearState() override;
 
   void SetGuides(GuidesTracks && guides) override;
+  void SetAvoidZones(std::shared_ptr<AvoidZones const> zones) override;
   RouterResultCode CalculateRoute(Checkpoints const & checkpoints, m2::PointD const & startDirection,
                                   bool adjustToPrevRoute, bool needAlternatives, RouterDelegate const & delegate,
                                   RoutesResult & result) override;
@@ -316,5 +317,9 @@ private:
 
   std::optional<RoutingOptions> m_requestRoutingOptions;
   RoutingOptions::RoadType m_previousRoutingOptions = 0;
+
+  std::shared_ptr<AvoidZones const> m_avoidZones;
+  // |m_avoidZones| without zones containing the checkpoints of the current request.
+  std::shared_ptr<AvoidZones const> m_requestAvoidZones;
 };
 }  // namespace routing
