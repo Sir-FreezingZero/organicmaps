@@ -1257,6 +1257,24 @@ void BookmarkManager::ClearTempRelationTrack()
   NotifyChanges(false /* saveChangesOnDisk */);
 }
 
+void BookmarkManager::SetUserMarkAreas(UserMark::Type type, std::vector<kml::AreaData> && areas)
+{
+  CHECK_THREAD_CHECKER(m_threadChecker, ());
+  CHECK(!IsBookmarkCategory(type), ());
+
+  ClearGroup(type);
+  auto * group = GetGroup(type);
+  for (auto & area : areas)
+  {
+    area.m_id = ++m_lastAreaId;
+    group->AttachArea(area.m_id);
+    m_changesTracker.OnAddArea(area.m_id);
+    m_areas.emplace(area.m_id, std::move(area));
+  }
+
+  NotifyChanges(false /* saveChangesOnDisk */);
+}
+
 void BookmarkManager::PrepareBookmarksAddresses(std::vector<SortBookmarkData> & bookmarksForSort,
                                                 AddressesCollection & newAddresses)
 {

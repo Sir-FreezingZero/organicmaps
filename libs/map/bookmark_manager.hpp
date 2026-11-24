@@ -444,6 +444,9 @@ public:
   /// Removes the current temporary relation track, if any.
   void ClearTempRelationTrack();
 
+  /// Replaces all areas of a non-bookmark layer, e.g. the routing avoid zones.
+  void SetUserMarkAreas(UserMark::Type type, std::vector<kml::AreaData> && areas);
+
   void UpdateBookmarksTextPlacement();
 
 private:

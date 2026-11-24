@@ -30,6 +30,7 @@
 #include "platform/distance.hpp"
 #include "platform/duration.hpp"
 #include "platform/platform.hpp"
+#include "platform/settings.hpp"
 
 #include "geometry/algorithm.hpp"
 #include "geometry/mercator.hpp"
@@ -38,6 +39,7 @@
 #include "coding/file_writer.hpp"
 
 #include "base/logging.hpp"
+#include "base/math.hpp"
 #include "base/scope_guard.hpp"
 #include "base/small_map.hpp"
 #include "base/stl_helpers.hpp"
@@ -85,6 +87,16 @@ RouteMarkData ToRouteMarkData(RoutePointJson const & point)
 }
 }  // namespace route_points_json
 
+namespace avoid_zones_json
+{
+struct AvoidZoneJson
+{
+  double lat = 0.0;
+  double lon = 0.0;
+  double radius = 0.0;
+};
+}  // namespace avoid_zones_json
+
 namespace
 {
 std::string_view constexpr kRouterTypeKey = "router";
@@ -92,6 +104,29 @@ std::string_view constexpr kRouterTypeKey = "router";
 double constexpr kRouteScaleMultiplier = 1.5;
 
 std::string const kRoutePointsFile = "route_points.dat";
+
+std::string_view constexpr kAvoidZonesKey = "AvoidZones";
+size_t constexpr kAvoidZoneVertices = 32;
+
+std::vector<m2::PointD> MakeAvoidZoneOutline(RoutingManager::AvoidZone const & zone)
+{
+  // Half sizes in mercator differ by latitude.
+  auto const rect = mercator::RectByCenterXYAndSizeInMeters(zone.m_center, zone.m_radiusM);
+  std::vector<m2::PointD> outline;
+  outline.reserve(kAvoidZoneVertices);
+  for (size_t i = 0; i < kAvoidZoneVertices; ++i)
+  {
+    double const angle = 2.0 * math::pi * i / kAvoidZoneVertices;
+    outline.emplace_back(zone.m_center.x + rect.SizeX() / 2 * std::cos(angle),
+                         zone.m_center.y + rect.SizeY() / 2 * std::sin(angle));
+  }
+  return outline;
+}
+
+bool AvoidZoneContains(RoutingManager::AvoidZone const & zone, m2::PointD const & pt)
+{
+  return mercator::DistanceOnEarth(zone.m_center, pt) <= zone.m_radiusM;
+}
 
 uint32_t constexpr kInvalidTransactionId = 0;
 
@@ -362,6 +397,16 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
 #endif
   );
 
+  if (std::string json; settings::Get(kAvoidZonesKey, json))
+  {
+    std::vector<avoid_zones_json::AvoidZoneJson> zones;
+    if (auto const error = glz::read_json(zones, json); error)
+      LOG(LWARNING, ("Can't read avoid zones:", glz::format_error(error, json)));
+    for (auto const & z : zones)
+      m_avoidZones.push_back({mercator::FromLatLon(z.lat, z.lon), z.radius});
+    ApplyAvoidZones();
+  }
+
   m_routingSession.SetRoutingCallbacks([this](RoutesResult const & result, RouterResultCode code)
   { OnBuildRouteReady(result, code); }, [this](RoutesResult const & result, RouterResultCode code)
   { OnRebuildRouteReady(result, code); }, [this](uint64_t routeId, storage::CountriesSet const & absentCountries)
@@ -426,6 +471,90 @@ RoutingManager::RoutingManager(Callbacks && callbacks, Delegate & delegate)
 void RoutingManager::SetBookmarkManager(BookmarkManager * bmManager)
 {
   m_bmManager = bmManager;
+  if (!m_avoidZones.empty())
+    ShowAvoidZones();
+}
+
+void RoutingManager::AddAvoidZone(AvoidZone const & zone)
+{
+  CHECK_GREATER(zone.m_radiusM, 0.0, ());
+  m_avoidZones.push_back(zone);
+  OnAvoidZonesChanged();
+}
+
+bool RoutingManager::RemoveAvoidZonesAt(m2::PointD const & pt)
+{
+  if (std::erase_if(m_avoidZones, [&pt](AvoidZone const & z) { return AvoidZoneContains(z, pt); }) == 0)
+    return false;
+
+  OnAvoidZonesChanged();
+  return true;
+}
+
+bool RoutingManager::HasAvoidZoneAt(m2::PointD const & pt) const
+{
+  return base::AnyOf(m_avoidZones, [&pt](AvoidZone const & z) { return AvoidZoneContains(z, pt); });
+}
+
+// static
+double RoutingManager::GetAvoidZoneRadius(m2::RectD const & viewport)
+{
+  double constexpr kMinRadiusM = 50.0;
+  double constexpr kMaxRadiusM = 50000.0;
+  double const sizeM = std::min(mercator::DistanceOnEarth(viewport.LeftBottom(), viewport.RightBottom()),
+                                mercator::DistanceOnEarth(viewport.LeftBottom(), viewport.LeftTop()));
+  return math::Clamp(sizeM / 8, kMinRadiusM, kMaxRadiusM);
+}
+
+void RoutingManager::OnAvoidZonesChanged()
+{
+  ApplyAvoidZones();
+  ShowAvoidZones();
+
+  if (m_avoidZones.empty())
+  {
+    settings::Delete(kAvoidZonesKey);
+    return;
+  }
+
+  std::vector<avoid_zones_json::AvoidZoneJson> zones;
+  zones.reserve(m_avoidZones.size());
+  for (auto const & z : m_avoidZones)
+  {
+    auto const ll = mercator::ToLatLon(z.m_center);
+    zones.push_back({ll.m_lat, ll.m_lon, z.m_radiusM});
+  }
+  settings::Set(kAvoidZonesKey, glz::write_json(zones).value_or(""));
+}
+
+void RoutingManager::ApplyAvoidZones()
+{
+  routing::AvoidZones zones;
+  zones.reserve(m_avoidZones.size());
+  for (auto const & z : m_avoidZones)
+    zones.emplace_back(MakeAvoidZoneOutline(z));
+  m_routingSession.SetAvoidZones(std::move(zones));
+}
+
+void RoutingManager::ShowAvoidZones()
+{
+  if (!m_bmManager)
+    return;
+
+  std::vector<kml::AreaData> areas;
+  areas.reserve(m_avoidZones.size());
+  for (auto const & z : m_avoidZones)
+  {
+    kml::AreaRing ring;
+    for (auto const & pt : MakeAvoidZoneOutline(z))
+      ring.push_back({mercator::ToLatLon(pt), {}});
+
+    auto & area = areas.emplace_back();
+    area.m_style = {.m_fillColor = 0xE5393540, .m_outlineColor = 0xE53935CC, .m_outlineWidth = 2.0};
+    area.m_polygons.emplace_back().m_outer = std::move(ring);
+    VERIFY(kml::NormalizeAreaGeometry(area.m_polygons), (z.m_center, z.m_radiusM));
+  }
+  m_bmManager->SetUserMarkAreas(UserMark::Type::AVOID_ZONE, std::move(areas));
 }
 
 void RoutingManager::SetTransitManager(TransitReadManager * transitManager)

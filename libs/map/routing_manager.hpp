@@ -161,8 +161,20 @@ public:
   routing::RoutingSession & RoutingSession() { return m_routingSession; }
   void SetRouter(routing::RouterType type);
   routing::RouterType GetRouter() const { return m_currentRouterType; }
-  /// Areas that routes avoid, starting from the next route build. Zones containing a route point are ignored.
-  void SetAvoidZones(routing::AvoidZones && zones) { m_routingSession.SetAvoidZones(std::move(zones)); }
+
+  struct AvoidZone
+  {
+    m2::PointD m_center;
+    double m_radiusM = 0.0;
+  };
+  /// Routes built after the change avoid the zones, except those containing a route point.
+  /// Zones are saved and shown on the map.
+  void AddAvoidZone(AvoidZone const & zone);
+  /// @returns false if no zone contains |pt|.
+  bool RemoveAvoidZonesAt(m2::PointD const & pt);
+  bool HasAvoidZoneAt(m2::PointD const & pt) const;
+  /// A zone radius that fits the visible map, so users pick the zone size by zooming.
+  static double GetAvoidZoneRadius(m2::RectD const & viewport);
   bool IsRoutingActive() const { return m_routingSession.IsActive(); }
   bool IsRouteBuilt() const { return m_routingSession.IsBuilt(); }
   bool IsRouteBuilding() const { return m_routingSession.IsBuilding(); }
@@ -447,6 +459,10 @@ private:
 
   void OnExtrapolatedLocationUpdate(location::GpsInfo const & info);
 
+  void OnAvoidZonesChanged();
+  void ApplyAvoidZones();
+  void ShowAvoidZones();
+
   RouteBuildingCallback m_routingBuildingCallback;
   RouteSpeedCamShowCallback m_routeSpeedCamShowCallback;
   RouteSpeedCamsClearCallback m_routeSpeedCamsClearCallback;
@@ -459,6 +475,7 @@ private:
 
   BookmarkManager * m_bmManager = nullptr;
   extrapolation::Extrapolator m_extrapolator;
+  std::vector<AvoidZone> m_avoidZones;
 
   struct FollowSession
   {

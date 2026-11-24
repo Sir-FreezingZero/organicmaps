@@ -2669,4 +2669,70 @@ UNIT_TEST(RoutingManager_TrackSelectionAvailabilityPreservesSourceOccurrences)
   TEST_EQUAL(manager.NavigateTrack(id), FollowTrackResult::NoRemainingGeometry, ());
   TEST_EQUAL(manager.GetFollowedTrackInfo()->m_entryDistanceM, entry, ());
 }
+
+UNIT_TEST(RoutingManager_AvoidZones)
+{
+  Platform::ThreadRunner const threadRunner;
+  std::string_view constexpr kKey = "AvoidZones";
+  settings::Delete(kKey);
+  SCOPE_GUARD(clearSettings, [kKey] { settings::Delete(kKey); });
+
+  class Delegate final : public RoutingManager::Delegate
+  {
+  public:
+    void OnRouteFollow(routing::RouterType) override {}
+  } delegate;
+  BookmarkManager bookmarks(BookmarkManager::Callbacks([]() -> StringsBundle const &
+  {
+    static StringsBundle const bundle;
+    return bundle;
+  }, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr));
+  auto const zoneAreas = [&bookmarks] { return bookmarks.GetAreaIds(UserMark::Type::AVOID_ZONE); };
+
+  {
+    RoutingManager manager(RoutingManager::Callbacks(nullptr, nullptr, nullptr, nullptr, nullptr), delegate);
+    manager.SetBookmarkManager(&bookmarks);
+    TEST(!manager.HasAvoidZoneAt(MeterPoint(0, 0)), ());
+    TEST(!manager.RemoveAvoidZonesAt(MeterPoint(0, 0)), ());
+
+    manager.AddAvoidZone({MeterPoint(0, 0), 100.0});
+    TEST(manager.HasAvoidZoneAt(MeterPoint(90, 0)), ());
+    TEST(!manager.HasAvoidZoneAt(MeterPoint(110, 0)), ());
+
+    // The shown outline is a circle of the zone radius.
+    TEST_EQUAL(zoneAreas().size(), 1, ());
+    auto const & ring = bookmarks.GetArea(*zoneAreas().begin())->m_polygons.at(0).m_outer;
+    TEST_GREATER(ring.size(), 8, ());
+    for (auto const & pt : ring)
+      TEST_ALMOST_EQUAL_ABS(mercator::DistanceOnEarth(MeterPoint(0, 0), mercator::FromLatLon(pt.m_latLon)), 100.0, 1.0,
+                            ());
+
+    manager.AddAvoidZone({MeterPoint(1000, 0), 50.0});
+    TEST_EQUAL(zoneAreas().size(), 2, ());
+  }
+
+  // Zones are restored and shown after restart.
+  RoutingManager manager(RoutingManager::Callbacks(nullptr, nullptr, nullptr, nullptr, nullptr), delegate);
+  manager.SetBookmarkManager(&bookmarks);
+  TEST_EQUAL(zoneAreas().size(), 2, ());
+  TEST(manager.HasAvoidZoneAt(MeterPoint(0, 0)), ());
+  TEST(manager.HasAvoidZoneAt(MeterPoint(1000, 40)), ());
+
+  TEST(manager.RemoveAvoidZonesAt(MeterPoint(990, 0)), ());
+  TEST(!manager.HasAvoidZoneAt(MeterPoint(1000, 0)), ());
+  TEST(manager.HasAvoidZoneAt(MeterPoint(0, 0)), ());
+  TEST_EQUAL(zoneAreas().size(), 1, ());
+
+  TEST(manager.RemoveAvoidZonesAt(MeterPoint(0, 0)), ());
+  TEST(zoneAreas().empty(), ());
+  std::string saved;
+  TEST(!settings::Get(kKey, saved), (saved));
+}
+
+UNIT_TEST(RoutingManager_AvoidZoneRadius)
+{
+  TEST_ALMOST_EQUAL_ABS(RoutingManager::GetAvoidZoneRadius({MeterPoint(0, 0), MeterPoint(800, 1600)}), 100.0, 1.0, ());
+  TEST_EQUAL(RoutingManager::GetAvoidZoneRadius({MeterPoint(0, 0), MeterPoint(10, 10)}), 50.0, ());
+  TEST_EQUAL(RoutingManager::GetAvoidZoneRadius({MeterPoint(0, 0), MeterPoint(1e7, 1e7)}), 50000.0, ());
+}
 }  // namespace routing_manager_tests
