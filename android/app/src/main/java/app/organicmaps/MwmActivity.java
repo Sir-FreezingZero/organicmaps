@@ -2243,6 +2243,17 @@ public class MwmActivity extends BaseMwmFragmentActivity
   }
 
   @Override
+  public void onPlacePageRequestToggleAvoidArea(@NonNull MapObject mapObject, boolean avoid)
+  {
+    closePlacePage();
+    if (avoid)
+      Framework.nativeAddAvoidZone(mapObject.getLat(), mapObject.getLon());
+    else
+      Framework.nativeRemoveAvoidZonesAt(mapObject.getLat(), mapObject.getLon());
+    RoutingController.get().onRoutingOptionsChanged();
+  }
+
+  @Override
   public void onTrackRecordingSaved()
   {
     if (!saveAndStopTrackRecording())

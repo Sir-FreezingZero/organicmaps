@@ -529,6 +529,7 @@ public class PlacePageController
     case ROUTE_AVOID_FERRY -> onAvoidBtnClicked(RoadType.Ferry);
     case ROUTE_AVOID_STEPS -> onAvoidBtnClicked(RoadType.Steps);
     case ROUTE_AVOID_DIFFICULT_TRAILS -> onAvoidBtnClicked(RoadType.DifficultTrail);
+    case AVOID_AREA, AVOID_AREA_REMOVE -> onAvoidAreaBtnClicked(item == PlacePageButtons.ButtonType.AVOID_AREA);
     }
   }
 
@@ -668,6 +669,12 @@ public class PlacePageController
       mPlacePageListener.onPlacePageRequestToggleRouteSettings(roadType);
   }
 
+  private void onAvoidAreaBtnClicked(boolean avoid)
+  {
+    if (mMapObject != null)
+      mPlacePageListener.onPlacePageRequestToggleAvoidArea(mMapObject, avoid);
+  }
+
   private void removePlacePageFragments()
   {
     final FragmentManager fm = getChildFragmentManager();
@@ -777,6 +784,11 @@ public class PlacePageController
             buttons.add(mapObject.isBookmark() ? PlacePageButtons.ButtonType.BOOKMARK_DELETE
                                                : PlacePageButtons.ButtonType.BOOKMARK_SAVE);
         }
+
+        if (!mapObject.isTrackRecording())
+          buttons.add(Framework.nativeHasAvoidZoneAt(mapObject.getLat(), mapObject.getLon())
+                          ? PlacePageButtons.ButtonType.AVOID_AREA_REMOVE
+                          : PlacePageButtons.ButtonType.AVOID_AREA);
       }
     }
     mViewModel.setCurrentButtons(buttons);
@@ -857,6 +869,7 @@ public class PlacePageController
   public interface PlacePageListener
   {
     void onPlacePageRequestToggleRouteSettings(@NonNull RoadType roadType);
+    void onPlacePageRequestToggleAvoidArea(@NonNull MapObject mapObject, boolean avoid);
     void onTrackRecordingSaved();
     void onTrackRecordingCancelled();
     void onPlacePageActiveChanged(boolean active);

@@ -28113,6 +28113,32 @@ vi = Tránh bến phà
 zh-Hans = 避开轮渡
 zh-Hant = 避開渡輪
 
+[avoid_area]
+comment = Place page button: routes will go around a circular area at this place
+tags = android-app
+en = Avoid area
+de = Bereich meiden
+es = Evitar zona
+fr = Éviter la zone
+it = Evita zona
+pl = Omijaj obszar
+pt = Evitar área
+ru = Избегать района
+uk = Уникати району
+
+[avoid_area_remove]
+comment = Place page button: routes will no longer go around the area that contains this place
+tags = android-app
+en = Stop avoiding area
+de = Bereich nicht mehr meiden
+es = Dejar de evitar zona
+fr = Ne plus éviter la zone
+it = Non evitare più la zona
+pl = Przestań omijać obszar
+pt = Parar de evitar área
+ru = Не избегать района
+uk = Не уникати району
+
 [avoid_difficult_trails]
 comment = Walking routing option to avoid paths mapped as difficult, expert, or hard to see.
 tags = android-app,apple-maps

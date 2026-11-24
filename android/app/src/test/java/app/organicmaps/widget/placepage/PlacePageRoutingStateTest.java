@@ -1,12 +1,14 @@
 package app.organicmaps.widget.placepage;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import app.organicmaps.sdk.Framework;
 import app.organicmaps.sdk.bookmarks.data.MapObject;
 import app.organicmaps.sdk.bookmarks.data.RoadWarningMarkType;
 import app.organicmaps.sdk.bookmarks.data.Track;
@@ -25,7 +27,8 @@ public class PlacePageRoutingStateTest
   public void trackSessionsDoNotOfferStaleRoadAvoidanceOrStopRemoval() throws ReflectiveOperationException
   {
     final RoutingController routing = mock(RoutingController.class);
-    try (MockedStatic<RoutingController> singleton = mockStatic(RoutingController.class))
+    try (MockedStatic<RoutingController> singleton = mockStatic(RoutingController.class);
+         MockedStatic<Framework> framework = mockStatic(Framework.class))
     {
       singleton.when(RoutingController::get).thenReturn(routing);
       final MapObject point = mock(MapObject.class);
@@ -38,8 +41,31 @@ public class PlacePageRoutingStateTest
       for (RoadWarningMarkType warning : List.of(RoadWarningMarkType.TOLL, RoadWarningMarkType.UNKNOWN))
       {
         when(point.getRoadWarningMarkType()).thenReturn(warning);
-        assertEquals(List.of(ButtonType.ROUTE_FROM, ButtonType.BOOKMARK_SAVE, ButtonType.ROUTE_TO), buttons(point));
+        assertEquals(
+            List.of(ButtonType.ROUTE_FROM, ButtonType.BOOKMARK_SAVE, ButtonType.ROUTE_TO, ButtonType.AVOID_AREA),
+            buttons(point));
       }
+    }
+  }
+
+  @Test
+  public void avoidAreaButtonTogglesByZoneAtPoint() throws ReflectiveOperationException
+  {
+    final RoutingController routing = mock(RoutingController.class);
+    try (MockedStatic<RoutingController> singleton = mockStatic(RoutingController.class);
+         MockedStatic<Framework> framework = mockStatic(Framework.class))
+    {
+      singleton.when(RoutingController::get).thenReturn(routing);
+      final MapObject point = mock(MapObject.class);
+      when(point.getRoadWarningMarkType()).thenReturn(RoadWarningMarkType.UNKNOWN);
+      assertEquals(ButtonType.AVOID_AREA, buttons(point).get(3));
+
+      framework.when(() -> Framework.nativeHasAvoidZoneAt(anyDouble(), anyDouble())).thenReturn(true);
+      assertEquals(ButtonType.AVOID_AREA_REMOVE, buttons(point).get(3));
+
+      // Recording tracks have no place to avoid.
+      when(point.isTrackRecording()).thenReturn(true);
+      assertEquals(-1, buttons(point).indexOf(ButtonType.AVOID_AREA_REMOVE));
     }
   }
 

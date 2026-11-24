@@ -1539,6 +1539,23 @@ JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeCouldAddIntermediate
   return frm()->GetRoutingManager().CouldAddIntermediatePoint();
 }
 
+JNIEXPORT void Java_app_organicmaps_sdk_Framework_nativeAddAvoidZone(JNIEnv *, jclass, jdouble lat, jdouble lon)
+{
+  auto & rm = frm()->GetRoutingManager();
+  rm.AddAvoidZone({mercator::FromLatLon(lat, lon), RoutingManager::GetAvoidZoneRadius(frm()->GetCurrentViewport())});
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeRemoveAvoidZonesAt(JNIEnv *, jclass, jdouble lat,
+                                                                               jdouble lon)
+{
+  return frm()->GetRoutingManager().RemoveAvoidZonesAt(mercator::FromLatLon(lat, lon));
+}
+
+JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeHasAvoidZoneAt(JNIEnv *, jclass, jdouble lat, jdouble lon)
+{
+  return frm()->GetRoutingManager().HasAvoidZoneAt(mercator::FromLatLon(lat, lon));
+}
+
 JNIEXPORT jboolean Java_app_organicmaps_sdk_Framework_nativeIsRoutePointsLimitReached(JNIEnv * env, jclass)
 {
   return frm()->GetRoutingManager().GetRoutePointsCount() >= RoutePointsLayout::kMaxRoutePointsCount;

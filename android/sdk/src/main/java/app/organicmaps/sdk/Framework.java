@@ -365,6 +365,18 @@ public class Framework
 
   public static native void nativeRemoveRoutePoints();
 
+  /**
+   * Adds a zone that routes avoid. Its size fits the visible map, so the user picks it by zooming.
+   */
+  public static native void nativeAddAvoidZone(double lat, double lon);
+
+  /**
+   * @return {@code false} if no avoid zone contains the point.
+   */
+  public static native boolean nativeRemoveAvoidZonesAt(double lat, double lon);
+
+  public static native boolean nativeHasAvoidZoneAt(double lat, double lon);
+
   public static native void nativeRemoveRoutePoint(@NonNull RouteMarkType markType, int intermediateIndex);
 
   public static native void nativeRemoveIntermediateRoutePoints();
