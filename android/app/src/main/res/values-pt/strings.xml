@@ -660,6 +660,10 @@
     <string name="avoid_unpaved">Evitar não-pavimentadas</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->
     <string name="avoid_ferry">Evitar ferribotes</string>
+    <!-- Place page button: routes will go around a circular area at this place -->
+    <string name="avoid_area">Evitar área</string>
+    <!-- Place page button: routes will no longer go around the area that contains this place -->
+    <string name="avoid_area_remove">Parar de evitar área</string>
     <!-- Walking routing option to avoid paths mapped as difficult, expert, or hard to see. -->
     <string name="avoid_difficult_trails">Evitar trilhos difíceis</string>
     <!-- Routing option to avoid stairs on walking and cycling routes -->

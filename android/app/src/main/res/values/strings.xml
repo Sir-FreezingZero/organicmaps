@@ -655,6 +655,10 @@
     <string name="avoid_unpaved">Avoid unpaved roads</string>
     <!-- Recommended length for CarPlay and Android Auto is around 25-27 characters -->
     <string name="avoid_ferry">Avoid ferries</string>
+    <!-- Place page button: routes will go around a circular area at this place -->
+    <string name="avoid_area">Avoid area</string>
+    <!-- Place page button: routes will no longer go around the area that contains this place -->
+    <string name="avoid_area_remove">Stop avoiding area</string>
     <!-- Walking routing option to avoid paths mapped as difficult, expert, or hard to see. -->
     <string name="avoid_difficult_trails">Avoid difficult trails</string>
     <!-- Routing option to avoid stairs on walking and cycling routes -->
