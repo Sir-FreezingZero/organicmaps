@@ -185,8 +185,8 @@ private:
   template <typename AccessPositionType>
   bool IsAccessNoForSure(AccessPositionType const & accessPositionType, RouteWeight const & weight,
                          bool useAccessConditional) const;
-  /// Road points inside avoid zones are treated like barriers with access=no.
-  bool IsInAvoidZone(RoadPoint const & rp) const;
+  /// @returns true if the road part between the points touches an avoid zone.
+  bool IsInAvoidZone(uint32_t featureId, uint32_t pointFrom, uint32_t pointTo) const;
 
   std::shared_ptr<Geometry> m_geometry;
   std::shared_ptr<EdgeEstimator> m_estimator;

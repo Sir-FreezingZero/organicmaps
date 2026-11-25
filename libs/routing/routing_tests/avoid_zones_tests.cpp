@@ -29,13 +29,13 @@ using namespace std;
 using SegmentsAlgorithm = AStarAlgorithm<Segment, SegmentEdge, RouteWeight>;
 using JointsAlgorithm = AStarAlgorithm<JointSegment, JointEdge, RouteWeight>;
 
-//            (1, 1)
-//          *---R1---*
-//        /            \
-// S --R2-*-----R0-------*--R3-- F
-//      (0, 0) (1, 0)  (2, 0)
+// R0 is the shortest way from S to F, R1 is the detour via (1, 1):
 //
-// R0 is the shortest way, R1 is the detour.
+//                 R1
+//          *------------*
+//          |            |
+// S --R2-- * ----R0---- * --R3-- F
+//       (0, 0) (1, 0) (2, 0)
 unique_ptr<SingleVehicleWorldGraph> BuildDetourGraph()
 {
   classificator::Load();
@@ -105,7 +105,16 @@ UNIT_TEST(AvoidZones_NoZones)
 UNIT_TEST(AvoidZones_Detour)
 {
   auto graph = BuildDetourGraph();
-  auto starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.5)});
+  auto starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.4)});
+  TestRouteGeometry(*starter, SegmentsAlgorithm::Result::OK,
+                    {{-1.0, 0.0}, {0.0, 0.0}, {1.0, 1.0}, {2.0, 0.0}, {3.0, 0.0}});
+}
+
+// The zone lies between road points: only the segment (0, 0) - (1, 0) crosses it.
+UNIT_TEST(AvoidZones_ZoneBetweenRoadPoints)
+{
+  auto graph = BuildDetourGraph();
+  auto starter = MakeDetourStarter(*graph, {MakeSquare({0.5, 0.0}, 0.1)});
   TestRouteGeometry(*starter, SegmentsAlgorithm::Result::OK,
                     {{-1.0, 0.0}, {0.0, 0.0}, {1.0, 1.0}, {2.0, 0.0}, {3.0, 0.0}});
 }
@@ -121,7 +130,7 @@ UNIT_TEST(AvoidZones_ZoneAwayFromRoute)
 UNIT_TEST(AvoidZones_AllWaysBlocked)
 {
   auto graph = BuildDetourGraph();
-  auto starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.5), MakeSquare({1.0, 1.0}, 0.5)});
+  auto starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.4), MakeSquare({1.0, 1.0}, 0.4)});
   TestRouteGeometry(*starter, SegmentsAlgorithm::Result::NoPath, {});
 }
 
@@ -134,12 +143,16 @@ UNIT_TEST(AvoidZones_Joints_Detour)
   TEST_EQUAL(CalculateJointsRoute(*starter, features), JointsAlgorithm::Result::OK, ());
   TEST_EQUAL(features, vector<uint32_t>({0}), ());
 
-  // Points between joints are checked too.
-  starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.5)});
+  // Road parts between joints are checked too, including those crossing a zone between road points.
+  starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.4)});
   TEST_EQUAL(CalculateJointsRoute(*starter, features), JointsAlgorithm::Result::OK, ());
   TEST_EQUAL(features, vector<uint32_t>({1}), ());
 
-  starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.5), MakeSquare({1.0, 1.0}, 0.5)});
+  starter = MakeDetourStarter(*graph, {MakeSquare({1.5, 0.0}, 0.1)});
+  TEST_EQUAL(CalculateJointsRoute(*starter, features), JointsAlgorithm::Result::OK, ());
+  TEST_EQUAL(features, vector<uint32_t>({1}), ());
+
+  starter = MakeDetourStarter(*graph, {MakeSquare({1.0, 0.0}, 0.4), MakeSquare({1.0, 1.0}, 0.4)});
   TEST_EQUAL(CalculateJointsRoute(*starter, features), JointsAlgorithm::Result::NoPath, ());
 }
 }  // namespace avoid_zones_tests

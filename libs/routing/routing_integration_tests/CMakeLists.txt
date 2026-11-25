@@ -9,6 +9,7 @@ project(routing_integration_tests)
 
 set(SRC
   absent_regions_finder_tests.cpp
+  avoid_zones_route_test.cpp
   bicycle_route_test.cpp
   bicycle_turn_test.cpp
   concurrent_feature_parsing_test.cpp
